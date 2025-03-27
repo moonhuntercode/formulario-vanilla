@@ -2,6 +2,13 @@ import "./style.css";
 import javascriptLogo from "./javascript.svg";
 import viteLogo from "/vite.svg";
 
+const logger = {
+  info: (message) => console.log(`[INFO] ${new Date().toISOString()}: ${message}`),
+  warn: (message) => console.warn(`[WARN] ${new Date().toISOString()}: ${message}`),
+  error: (message) => console.error(`[ERROR] ${new Date().toISOString()}: ${message}`),
+};
+
+// HTML (sin cambios)
 document.querySelector("#app-container").innerHTML = /*html*/ `
   <main>
     <form action="#" id="register-form" class="form-container">
@@ -65,24 +72,92 @@ document.querySelector("#app-container").innerHTML = /*html*/ `
 `;
 
 document.addEventListener("DOMContentLoaded", () => {
-  const fields = [
-    { checkId: "fullName-checkbox-input", inputId: "fullName" },
-    { checkId: "age-checkbox-input", inputId: "age" },
-    { checkId: "email-checkbox-input", inputId: "email" },
-    { checkId: "password-checkbox-input", inputId: "password" },
-    { checkId: "password-again-checkbox-input", inputId: "password-again" },
-  ];
+  try {
+    const form = document.querySelector("#register-form");
+    if (!form) throw new Error("No se encontró el formulario");
 
-  fields.forEach(({ checkId, inputId }) => {
-    const checkbox = document.querySelector(`#${checkId}`);
-    const input = document.querySelector(`#${inputId}`);
+    const fields = [
+      { checkId: "fullName-checkbox-input", inputId: "fullName", minLength: 2 },
+      { checkId: "age-checkbox-input", inputId: "age", minValue: 18, maxValue: 150 },
+      { checkId: "email-checkbox-input", inputId: "email" },
+      { checkId: "password-checkbox-input", inputId: "password", minLength: 6 },
+      { checkId: "password-again-checkbox-input", inputId: "password-again" },
+    ];
 
-    if (checkbox && input) {
+    fields.forEach(({ checkId, inputId }) => {
+      const checkbox = document.querySelector(`#${checkId}`);
+      const input = document.querySelector(`#${inputId}`);
+
+      if (!checkbox || !input) {
+        logger.error(`Elemento no encontrado: ${checkId} o ${inputId}`);
+        return;
+      }
+
       input.required = checkbox.checked;
+      input.disabled = !checkbox.checked;
+
       checkbox.addEventListener("change", () => {
         input.required = checkbox.checked;
         input.disabled = !checkbox.checked;
+        logger.info(`Campo ${inputId} ${checkbox.checked ? "activado" : "desactivado"}`);
       });
-    }
-  });
+    });
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      try {
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData);
+
+        // Validación: Todos los campos llenos
+        for (let [key, value] of Object.entries(data)) {
+          if (!value.trim()) {
+            logger.warn(`El campo ${key} está vacío`);
+            alert(`El campo ${key} es obligatorio`);
+            return;
+          }
+        }
+
+        // Validación: Correo con @
+        if (!data.email.includes("@")) {
+          logger.warn("El correo debe contener '@'");
+          alert("El correo debe contener '@'");
+          return;
+        }
+
+        // Validación: Contraseña mínimo 6 caracteres
+        if (data.password.length < 6) {
+          logger.warn("La contraseña debe tener al menos 6 caracteres");
+          alert("La contraseña debe tener al menos 6 caracteres");
+          return;
+        }
+
+        // Validación: Contraseñas coinciden
+        if (data.password !== data["password-again"]) {
+          logger.warn("Las contraseñas no coinciden");
+          alert("Las contraseñas no coinciden");
+          return;
+        }
+
+        // Validación: Mayor de 18
+        const age = parseInt(data.age);
+        if (isNaN(age) || age < 18) {
+          logger.warn("Debes ser mayor de 18 años");
+          alert("Debes ser mayor de 18 años");
+          return;
+        }
+
+        logger.info("Formulario enviado con éxito");
+        logger.info(`Datos: ${JSON.stringify(data)}`);
+        alert("Formulario enviado con éxito");
+      } catch (error) {
+        logger.error(`Error al procesar el formulario: ${error.message}`);
+        alert("Ocurrió un error al enviar el formulario");
+      }
+    });
+
+    logger.info("Formulario inicializado correctamente");
+  } catch (error) {
+    logger.error(`Error en la inicialización: ${error.message}`);
+  }
 });
